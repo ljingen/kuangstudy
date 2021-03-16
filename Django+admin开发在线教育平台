@@ -1,0 +1,1258 @@
+# django+admin 开发在线教育平台
+
+## 第三章 通过留言板功能回顾django基础功能
+
+### 3.1 django的目录介绍
+
+manage.py --启动jdango的主要命令文件
+
+template --模板文件夹
+
+djangostart- --项目文件
+
+python manage.py startapp message: 新建一个app
+
+
+
+> 对于网站应用 ，需要建立如下文件夹
+>
+> static 必不可少，存放css,js等
+>
+> log文件存放日志文件  
+>
+> media 存放上传文件
+
+
+
+> 对于文件的组织，我们可以新建apps，并将项目的app都放入这个文件夹
+
+
+
+> 为了能够支持apps，引入就需要 from apps.message import views , 这样才能找到
+>
+> 在编辑器，可以直接在apps,右键，设置为sources Root,
+>
+> 同时，为了在命令行，程序也可以运行，我们需要在settings里面设置环境变量，
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+### 3.2 配置表单页面
+
+- settings 更换mysql数据库
+
+  ```python
+  DATABASES = {
+      'default': {
+          'ENGINE': 'django.db.backends.mysql',
+          'NAME': 'blogproject',
+          'USER': 'root',
+          'PASSWORD': '123456',
+          'HOST': '127.0.0.1',
+          'PORT': '3306',
+      }
+  }
+  ```
+
+  Engine  ：配置驱动
+
+  Name：数据库名子
+
+  User：用户名
+
+  password:密码
+
+  HOST:  数据库地址
+
+  PORT:数据库的端口
+
+- 创建静态文件目录static，并增加css、js文件等
+
+
+
+- 生成数据库表
+
+  - 进入虚拟环境安装Mysql驱动 pip install mysqlclient -i https://pypi.douban.com/simple
+
+  - python manage.py migrate
+
+> python库地址  www.lfd.uci.edu/~gohlke/pythonlibs/#mysql-python
+>
+> 从这里可以下载mysqlclient的驱动库
+
+
+
+- 让一个页面显示出来的步骤
+
+  ```python
+  # step 1、先配置urls.py文件，添加一个路由记录
+  	path('form/', getforn,name='form_table'),
+  # step 2、进入对应的app，添加一条对应的view
+   def getform(request):
+   	return render(request, tenplate_name='message_from.html')
+  # step 3、进入到templates文件夹，message_from.html
+  
+  # step 4、 python manage.py runserver 0.0.0.0:8000
+  
+  Note:
+      1、我们需要指明templates目录  
+      TEMPLATES = [
+      {
+          'BACKEND': 'django.template.backends.django.DjangoTemplates',
+          'DIRS': [os.path.join(BASE_DIR, 'templates')],
+          'APP_DIRS': True,
+          'OPTIONS': {
+              'context_processors': [
+                  'django.template.context_processors.debug',
+                  'django.template.context_processors.request',
+                  'django.contrib.auth.context_processors.auth',
+                  'django.contrib.messages.context_processors.messages',
+              ],
+          },
+      },
+  ]
+      
+      2、需要配置我们的static目录
+  """假如你项目根目录/static/下有一个123.png的图片,那么就可以直接通过浏览器http://IP：端口号/static/123.png来访问你的图片了"""
+  STATIC_URL = '/static/'
+  """开发模式下,STATICFILES_DIRS告诉django,首先到STATICFILES_DIRS里面寻找静态文件，其次再到各个app的static文件夹里面找"""
+  STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+  """部署的时候执行python manage.py collectstatic，django会把所有App下的static文件都复制到STATIC_ROOT文件夹下"""
+  # STATIC_ROOT = os.path.join(BASE_DIR, "static")
+  ```
+
+### 3.3 编写数据模型
+
+> django的orm
+
+传统的python连接数据库
+
+```python
+import MySQLdb
+
+def book_list(request):
+    db = Mysqldb.connect(user='me',db='mydb',passwd='secret', host='localhost')
+    cursor = db.cursor()
+    cursor.execute('SELECT name FROM books ORDER BY name')
+    names = [ row[0] for row in cursor.fetchall() ]
+    db.close()
+
+传统为了获取一个book的name,我们需要执行连接数据库>获取cursor>执行数据库语句> 获取对应的第几个数据>关闭数据库
+```
+
+使用django的orm模式
+
+> 进入当前app的models.py文件，编写自己的models文件
+
+```python
+
+from django.db import models
+
+class UserMessage(models.Model):
+    name = models.CharField('用户名', max_length=20)
+    email = models.EmailField('邮箱')
+    address = models.CharField('地址', max_length=100)
+    message = models.CharField('留言信息', max_length=500)
+    
+    class Meta:
+        verbose_name = '用户留言信息'
+        verbose_name_plural=verbose_name
+```
+
+上述就是我们定义的models
+
+
+
+Step2 、接下来我们需要把这个表单添加到数据库，
+
+​	先到settings中，添加我们的app
+
+```python
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',  # django 登录校验
+    'django.contrib.contenttypes',  # contenttypes是auth 模块的用户权限处理部分依赖的应用
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+	
+    'message',  # 注册app
+]
+```
+
+step3 、执行python manage.py makemigrations message
+
+这样就会创建一个UserMessage的表单
+
+Step 4 、执行python manage.py migrate
+
+这样我们就把这个表单添加到数据库了，在数据库会生成一条message_usermessage
+
+前面的message 是app名称
+
+后面的  usermessage： 是models里面，大写换成小写，然后生成的名称
+
+> 详解name = models.CharField('用户名', max_length=20)
+>
+> 数据类型: CharField
+>
+> 字段: 
+>
+> max_length ： 定义这个字段最大长度
+>
+> null ：是否可以为空
+>
+> primary_key ：自定义主键
+>
+> blank ：是否可以为空
+>
+> default : 默认填充的数据
+>
+> verbose : 这个字段的别名
+>
+> 
+>
+> models 里面有大量的数据类型，可以自己点击models进去查看，每个数据类型都有很多的字段
+
+models 的Meta信息：
+
+```python  
+verbose_name：表的名称
+
+verbose_name_plural ： 复数形式
+
+db_table" 创建表明 例如 db_table="user_message"
+ordering: 进行排序 例如 ordering='-ordering'
+```
+
+### 3.4 数据表的ORM增删改查
+
+```python
+# djangostart.views
+
+from .models import UserMessage
+
+def getform(request):
+    
+    all_messages = UserMessage.objects.all()  # 获取queryset类型的列表，可以执行for循环
+    
+    for message in messages:                    # message才是真正的一个数据表单元
+        .....
+        print(message.name)
+
+```
+
+ORM, 查询集，表示从数据库中获取的模型对象集合，过滤器，基于所给的参数限制查询的结果
+
+返回列表的过滤器
+
+all() : 返回所有数据，以对向行驶
+
+filter() :返回满足条件的数据
+
+exclude() 返回满足条件之外的数据，相当于sql语句的where部分的Not关键字
+
+order_by() 返回排序后的数据
+
+>  返回单个对象的过滤器
+
+get() 返回单个满足条件的对象
+
+count() 返回当前查询的总条数
+
+aggregate() 聚合查询
+
+exists() 判断查询集中是否有数据，如果有返回True，没有返回False
+
+> 查询判断关系
+
+exact contains startswith,endswith  运算符是区分大小写
+
+iexact  icontains istartswith iendswith 不区分大小写
+
+ORM F和Q的作用
+
+- 1、F对象，用于两个属性的比较
+
+bookInfos = BookInfo.book.filter(readcount__gt=F('commentCount') ): 查询阅读量大于评论量的书籍
+
+  bookInfos = BookInfo.books.filter(readcount__gt=F('commentcount')*2) :查询阅读量大于2倍评论量的书籍 : F对象支持运算
+
+- 2、Q对象：多个过滤器逐个调用表示逻辑与关系，同sql语句中where部分的and关键字
+
+  bookInfos = BookInfo.books.filter(Q(readcount__gt=20) | Q(id__lt=3))  查询阅读量大于20，或编号小于3的图书
+
+
+
+基础的关联查询
+
+```python
+# 先查编号为1的书
+book = BookInfo.books.get(pk=1)
+# 再通过关联查询到编号为1的书里面的任务信息
+peopleInfos = book.peopleinfo_set.all()
+```
+
+保存一条数据到数据库
+
+```python
+user_message = UserMessage()
+user_message.name = "bobby2"
+user_message.message = "hello world"
+user_message.address = "上海"
+user_message.email = "bobby@bobby.com"
+user_message.object_id = "hello world"
+user_message.save()
+
+retrurn render(request, 'message_form.html')
+# 这样就保存数据到数据库了
+```
+
+>  如何从页面 取出数据并保存到数据库呢？
+
+第一步，在我们的html页面里面，form中添加 {% csrf_token %}， 不然会出现403的错误
+
+```html
+<form action="/form/" method = post class="smart">
+    .........
+    {% csrf_token %}
+</form>
+```
+
+第二步 ，然后到views的方法进去取值，值在request里面，里面有个关键的post属性，里面以键值对形式出现，key为前面页面元素的name属性，非常关键
+
+```python
+
+if request.method == 'POST': # 必须判断一下是否为post，因为get的时候可能取到空值，导致取错  
+    user_message.name = request.POST.get('name')
+    user_message.message = request.POST.get('message')
+    user_message.address = request.POST.get('address')
+    user_message.email = request.POST.get('email')
+    user_message.object_id = "hello world"
+    user_message.save()
+
+#  get()里面取的值，是前面html页面里面，对应元素name的值
+```
+
+###  3.5 django url templates配置
+
+第一步， 在views.py里面取出来数据库的数据
+
+```python
+def getform(request):
+    message = None
+    all_message = UserMessage.objects.filter(name='bobbytest')
+    if all_message:
+        message = all_message[0]
+    return render(request,'message_form.html', {'my_message': message})
+# 说明：
+	1、通过render的dict参数，传入我们要递交给html渲染的数据，这样在我们的Html页面模板里面就可以使用my_message这个值了
+```
+
+第二步， 进入到前台的html页面，使用my_message，来进行设置对应的显示值
+
+```html
+通过value = "{{my_message.name}}" 可以获取值
+<label>
+    <span>姓名:</span>
+	<input id ="name", type="text", value="{{my_message.name}}", name="name" placehold="姓名"/>
+    <div class="error-msg"></div>
+</label>
+
+<label>
+    <span>留言:</span>
+    <textarea id ="message", name="message",placehold="请输入消息">{{my_message.message}}</textarea>
+    <div class="error-msg"></div>
+</label>
+
+# view -> HTML 使用Django模版:
+    from django.shortcuts import render
+    def main_page(request):
+      data = [1,2,3,4]
+      return render(request, 'index.html', {'data': data})
+# view-> JavaScript
+import json
+from django.shortcuts import render
+  
+    def main_page(request):
+      list = ['view', 'Json', 'JS']
+      return render(request, 'index.html', {
+          'List': json.dumps(list),
+        })
+	在JavaScript部分
+	var List = {{ List|safe }};
+# JavaScript Ajax 动态刷新页面
+	Django 代码：
+    def scene_update_view(request):
+      if request.method == "POST":
+          name = request.POST.get('name')
+          status = 0
+          result = "Error!"
+          return HttpResponse(json.dumps({
+            "status": status,
+            "result": result
+          }))
+	JS 代码：
+	function getSceneId(scece_name, td) {
+      var post_data = {
+        "name": scece_name,
+      };
+
+      $.ajax({
+        url: {% url 'scene_update_url' %},
+        type: "POST",
+        data: post_data,
+        success: function (data) {
+          data = JSON.parse(data);
+          if (data["status"] == 1) {
+            setSceneTd(data["result"], scece_name, td);
+          } else {
+            alert(data["result"]);
+          }
+        }
+      });
+    } 
+```
+
+> django模板标签的一些用法	
+
+{% if my_message.name=='bobytest' %} bobbyhastest{% endif %}
+
+{% if my_message.name=='bobytest' %} bobby has test {% else %}boby not have test {% endif %}
+
+{% if not my_message.name=='bobytest' %} bobby has test  {% endif %}
+
+{% ifequal my_message.name 'bobytest' %} bobby has test  {% endifequal %}
+
+{% ifequal my_message.name|slice :'5' 'bobytest' %} bobby has test  {% endifequal %}
+
+> url的配置技巧
+
+首先，在urls.py里面，配置url
+
+urlpatterns =[
+
+​	path('form/', getform, name='go_form'),
+
+]
+
+然后，我们在模板中可以直接使用标签使用 
+
+ {% url  'go_form' %} 
+
+**这样做得好处, 后续无论我们在urls.py里面怎么进行更改，只要name=get_form不变更，就不会有影响, 用起来更加的简单**
+
+
+
+
+
+> 总结:
+
+学习了如何建立django目录，配置static；
+
+学习了如何配置表单的页面，配置数据库，配置Template_dir等相关settings.py配置
+
+学习了如何创建model.py模型
+
+学习了如何进行数据库的增删改查，如何在views.py里面实现相应的配置；
+
+学些了如何在django url里面配置对应的url，并将前后台数据进行关联起来
+
+## 第四章 需求分析和model设计
+
+### 4.1 使用python3.6 和django 1.11
+
+> 使用指定的python版本 安装virtualenv
+
+virtualenv -p D:\Python\Python36  blog_test  
+
+通过这个指令，就会在指定的python3.6版本上创建一个blog_test的虚拟机环境
+
+> 数据库驱动
+
+在python3.6，我们使用mysqlclint
+
+> xadmin和djangoueditor对python3.6的适配	
+
+去github里面搜索: mxonline_resources [liyaopinner/*mxonline_resources*](https://github.com/liyaopinner/mxonline_resources)
+
+### 4.2 使用jdango2.0开始课程
+
+```
+1.安装依赖包
+	新装
+		pip install requests
+	重装
+		django-crispy-forms
+		django-formtools
+		django-import-export
+		django-simple-captcha
+		django-pure-pagination
+2. 拷贝django2分支下的xadmin和djangoueditor源码
+3.所有的model的外键都需要加上on_delete的行为，改为on_delete=models.CASCADE
+4.from django.core.urlresolvers import reverse 全部改为from django.urls import reverse
+5.url中关于include的地方全部改为url(r'^course/', include(('course.urls','courses'),namespace='course'))的模式
+6.说明一下，urls.py中url(r'^captcha/', include('captcha.urls')),一定不能加namespace也不能用上面的模式，保持原来模式就可以
+7.将settings的MIDDLEWARE_CLASSES改为MIDDLEWARE并删除'django.contrib.auth.middleware.SessionAuthenticationMiddleware'
+
+```
+
+
+
+### 4.3 django-app设计
+
+做任何项目之前，首先需要先设计数据库，需要根据系统需求分析，设计出来对应的app
+
+- django app 设计
+- 各app models设计
+
+![image-20201018232551686](F:\MD格式学习笔记库\Django+admin开发在线教育平台.assets\image-20201018232551686.png)
+
+
+
+### 4.4 新建项目及搭建开发环境	
+
+
+
+> 首先创建我们的虚拟环境, 进入到对应的虚拟环境, 安装我们的django安装包
+
+```cmd  
+
+# virtualenv -p D:\Python\Python36  mxonline
+# active.bat
+# pip install django == 1.9.8 -i https://pypi.douban.com/simple
+```
+
+> 创建我们的django项目，我们创建叫做mxonline, 选择项目类型选择Django, 在Interpreter 我们选择刚才创建的虚拟环境
+
+![image-20201018233021421](F:\MD格式学习笔记库\Django+admin开发在线教育平台.assets\image-20201018233021421.png)
+
+
+
+> 安装对应的mysql驱动 ,并在settings.py配置数据库信息
+
+```cmd
+pip install mysqlclient
+pip install pillow
+
+# 进入到settings.py配置数据库信息
+
+DATABASES ={
+	'default':{
+		'ENGINE':'django.db.backends.mysql',
+		'NAME': 'mxonline',
+		'USER': 'root',
+		'PASSWORD': '123456',
+		'HOST':'127.0.0.1',
+	}
+}
+
+# 配置完之后，我们进入到数据库，创建一个名字叫做mxonline的数据库，记住需要选择编码方式为utf-8,排序规则选择 utf8-general-ci
+```
+
+![image-20201018235139680](F:\MD格式学习笔记库\Django+admin开发在线教育平台.assets\image-20201018235139680.png)
+
+
+
+```cmd
+# 接下来，我们执行
+ python manage.py makemigrations
+ python manage.py migrate
+```
+
+
+
+> 至此，我们基础环境就搭建完了，可以点击pycharm里面的run或者debug，运行成功后，进入浏览器就可以访问了。
+
+
+
+### 4.5 自定义userprofile的设计
+
+首先，我们新建一个users的app， startapp users, 在任何系统里面，users 表都是需要首先设计的; 自定义我们的user表，可以查看django的官方文档
+
+```python
+from django.contrib.auth.models import AbstractUser
+
+class UserProfile(AbstractUser):
+    nicke_name = models.CharField('昵称', max_length=50, default='')
+    birthday = models.DateField('生日', null=True, black=True)
+    gender = models.CharField(choices=("male","男"),("female","女"), default="female", max_length=10)
+    mobile = models.CharField('手机',max_length=11, default='')
+    address =models.CharField('地址',max_length=100, default='')
+    image = models.ImageField('头像', upload_to='image/%Y/%m', default='image/default.png', max_length=100)
+    
+    class Meta:
+        verbose_name = '用户信息'
+        verbose_name_plural = verbose_name
+    
+    def __str__(self):
+        return self.username
+	
+```
+
+接下来，进入到我们的settings.py里面注册我们的app
+
+```python
+# settings.py
+INSTALL_APP = [
+    .....
+    'users',
+    .....
+]
+
+AUTH_USER_MODEL = "users.UserProfile"   # 注意，这里直接使用app名称+对应的models名称
+```
+
+> 上面我们执行python manage.py makemigrations 会报错，主要如下两个错误
+>
+> 1、 gender是一个CharField类型 ，需要指定max_length
+>
+> 2、因为使用到了ImageField，我们需要安装Pillow,  pip install Pillow
+
+
+
+执行上述步骤，我们的数据库就生成成功了，我们可以到数据库进行查看，里面有一个新的表
+
+
+
+
+
+**总结： 主要介绍了如何通过页面原型的分析，来构建我们自己的user表，以及如何通过继承AbstractUser这个表，来定制我们自己的UserProfile表的过程，这里面有一个点，就是记得需要把 AUTH_USER_MODEL添加到settings.py里面**
+
+
+
+### 4.6 user models.py的设计
+
+> 我们在设计models时候，要规避掉循环引用，这样循环import，就会出现错误，
+
+![image-20201019001350116](F:\MD格式学习笔记库\Django+admin开发在线教育平台.assets\image-20201019001350116.png)
+
+​	**比如如下循环调用的场景:**
+
+​	user的models有一个UserCourse，里面有用户学习课程，有两个外键user和course,这个时候就需要import course的models
+
+​	在Course的models，有一个CourseComments，里面有Course和User，也是两个外键，这个时候又需要import User 的models，
+
+​	上述这个例子，就造成了循环引用，这在django中是会引起错误的，引起死循环，我们设计app需要规避掉这种问题
+
+​	**如何解决循环import问题:**
+
+​	一般采用分层设计，我们把产生交集使用的定义到一个独立app，如这个例子，我们把用户之间的操作，我们放到更上面一层operation app里面
+
+​	![image-20201019001953369](F:\MD格式学习笔记库\Django+admin开发在线教育平台.assets\image-20201019001953369.png)
+
+> 完成接下来的user models设计
+
+- 我们需要邮箱进行验证  EmailVerifyRecord 
+- 我们需要轮播图， PageBanner，不会和其他app产生交互
+- 自定义UserProfile实现用户功能
+
+```python
+# 第一部分python自带的
+from datetime import datetime
+# 第二部分 第三方的
+#第三部分我们自己的
+class EmailVerifyRecord(models.Model):
+    code = models.CharField('验证码', max_length=20)
+    email = models.EmailField('邮箱', max_length=50)
+    send_type = models.CharField(choices=(('register','注册'),('forget','找回密码'),('')), max_length=10)
+    send_time = models.DateTimeField('添加时间',default= datetime.now ) # 记住要去掉()， 不去掉() 会根据models编译时间，去掉括号会根据实例化时间
+    
+    class Meta:
+        verbose_name = '邮箱验证码'
+        verbose_name_plural = verbose_name
+
+class Banner(models.Model):
+    title = models.CharField('标题', max_length=100)
+    image = models.ImageField('轮播图', upload_to='banner/%Y/%m', max_leng=100)
+    url = models.URLField('访问地址', max_length=200)
+    index = models.IntegerField('顺序'， default=100)
+    add_time = models.DateTimeField('添加时间',default=datetime.now)
+    class Meta:
+        verbose_name = '轮播图'
+        verbose_name_plural = verbose_name
+
+```
+
+
+
+小结: 
+
+1. 学习了如何规避django的循环调用，一般如果A表有B表外键，B app也有用到A app的外键，那这个时候就容易造成循环调用，死锁的问题，为了解决这类问题，我们就需要进行app的分层设计，把这种交叉的部分单独放入到一个独立的app中进行设计
+
+2. 在设计EmailVerifyRecord时，考虑到后面code既会用到注册，也会用到密码找回，还会用到重置密码，这个时候，我们可以添加一个send_type来进行解决，里面使用choice字段来进行区分
+3. 在设计Banner轮播图时候，轮播图是有一些次序的，这个时候，我们可以添加一个index，来进行排序，后台处理的时候，根据index的不同来进行不同顺序的排序
+4. datetime.now和datetime.now()，在字段中作用不同，不加()， 则在类实例化时候，添加时间，如果有括号那么在类编译的时候，就会添加进去对应的时间
+
+### 4.7 course models.py的设计
+
+> 首先，我们需要通过 python manage.py startapp course，来创建我们的course app
+
+创建成功后，根据原型，我们可以进行分析
+
+1. 课程我们需要设计一张表保存 Course
+2. 章节和课程是1对多的关系，所以我们需要设计一个章节表 
+3. 章节和视频是1对多的关系，我们还需要设计一个Video表
+4. 同时课程还有一个资源下载，一个课程对应多个资源，所以我们需要设计一个资源表Resources
+
+![image-20201019003942653](F:\MD格式学习笔记库\Django+admin开发在线教育平台.assets\image-20201019003942653.png)
+
+> 我们找到course 里面的models表，编写对应表
+
+```python
+class Course(models.Model):
+    name = models.CharField('课程名称',max_length=50)
+    desc = models.CharField('课程描述',max_length=300)
+    detail = models.TextField('课程详情')
+    level = models.CharField('难度',choices=('cj','初级'),('zj','中级'),('gj','高级'), max_length=2)
+    learn_times = models.IntegerField('学习时长(分钟数)', default=0)
+    students = models.IntegerField('学习人数', default=0)
+    fav_nums = models.IntegerField('收藏人数', default=0)
+    image = models.ImageField('封面', upload_to='courses/%Y/%m',max_length=100)
+    click_nums=models.IntegerField('点击数', default=0)
+    add_time = models.DateTimeField('添加时间', default=datetime.now)
+    
+    class Meta:
+        verbose_name = '课程'
+        verbose_name_plural = verbose_name
+        
+```
+
+上面是我们的Course表
+
+
+
+```python
+class Lesson(models.Model):
+    course = models.ForeignKey(Course, verbose_name='课程')
+    name = models.CharField('章节名',max_length=50)
+    add_time = models.DateTimeField('添加时间', default=datetime.now)
+    
+    class Meta:
+        verbose_name = '章节'
+        verbose_name_plural = verbose_name
+```
+
+上面是我们的章节表
+
+
+
+```python
+class Video(models.Model):
+    lesson = models.ForeignKey(Lesson, verbose_name='章节')
+    name = models.CharField('视频名',max_length=100)
+    add_time = models.DateTimeField('添加时间', default=datetime.now)
+    
+    class Meta:
+        verbose_name = '视频'
+        verbose_name_plural = verbose_name
+```
+
+上面是视频名称
+
+```python
+class CourseResource(models.Model):
+    course = models.ForeignKey(Course, verbose_name='章节')
+    name = models.CharField('名称',max_length=100)
+    download = models.FileField('资源文件', upload_to='course/resource/%Y、%m', max_length=100)  # 文件类型的字段
+    add_time = models.DateTimeField('添加时间', default=datetime.now)
+    
+    class Meta:
+        verbose_name = '课程资源'
+        verbose_name_plural = verbose_name
+```
+
+上面是我们的资源名称
+
+小结:
+
+1. 外键我们可以使用ForeignKey，这是1对多的
+
+2. 在设计models时，遇到一对多关旭，就采用两张表进行存储,比如一个课程，存在多个章节，则建立course表，再建立lesson表，在lesson表里面加入course的外键；
+
+   如果多对多关系，可以采用3张表进行存储，比如一个作者多本书籍，一个书籍多个作者，可以建立author表，一个book表，然后还有一个boot_author对应表；
+
+3. 对于含有资源下载的表单，我们使用models.FileField来进行设计，这样在页面就会展示出来对应的下载或者上传的按钮
+
+### 4.8 organization models.py设计
+
+> 对于任何一个应用，我们新建app python manage.py startapp organization
+
+![image-20201021150154715](F:\MD格式学习笔记库\Django+admin开发在线教育平台.assets\image-20201021150154715.png)
+
+通过页面的需求分析，我们可以构建出来上述三张表，来解决我们的问题，接下来我们开始设计我们的数据表
+
+定义我们的教育机构
+
+```python
+class CourseOrg(models.Model):
+    name = models.CharField('名称', max_length=50)
+    desc = models.TextField('机构描述')
+    image = models.ImageField(''， upload_to, max_length=100)
+    click_num = models.IntegerField('点击数', default=0)
+    fav_num = models.IntegerField('收藏数', default=0)
+    address=  models.CharField('机构地址', max_length=100)
+    city = models.ForeignKey(CityDict, verbose_name='城市')
+        
+    class Meta:
+        verbose_name = '课程机构'
+        verbose_name_plural = verbose_name
+```
+
+
+
+定义城市
+
+```python
+class CityDict(models.Model):
+    name = models.CharField('城市', max_length=20)
+    desc = models.CharField('描述', max_length=200)
+    add_time = models.DateTimeField('添加时间'， default=datetime.now)
+    
+    class Meta:
+        verbose_name = '城市'
+        verbose_name_plural = verbose_name
+```
+
+定义教师
+
+```python
+class Teacher(models.Model):
+    org = models.ForeignKey(CourseOrg, verbose_name='所属机构')
+    name = models.CharField('教师名称', max_length=20)
+    work_years = models.IntegerField('工作年限', default=0)
+    work_company = models.CharField('就职公司', max_length=50)
+    work_position = models.CharField('公司职位', max_length=50)
+    points = models.CharField('教学特点', max_length=50)
+    click_num = models.IntegerField('点击数', default=0)
+    fav_num = models.IntegerField('收藏数', default=0)    
+    add_time = models.DateTimeField('添加时间'， default=datetime.now)
+    
+    class Meta:
+        verbose_name = '教师'
+        verbose_name_plural = verbose_name
+```
+
+
+
+### 4.9 operation models.py设计
+
+通过分析，知道用户操作的表
+
+UserAsk --用户咨询       CourseComments 用户评论  UserFavorite 用户收藏  UserMessage  用户消息  UserCourse 用户学习的课程，(用户点击我要学习就添加课程)
+
+首先，我们还是要新建我们的app   python manage.py startapp operation
+
+
+
+然后编写第一个表，UserAsk
+
+```python
+class UserAsk(models.Model):
+    name = models. CharField('姓名', max_length=20)
+    mobile = models.CharField('手机', max_length=11)
+    course_name = models.CharField('课程名',max_length=50)
+    add_time = models.DateTimeField('添加时间', default=datetime.now)
+    
+    class Meta:
+        verbose_name = '用户咨询'
+        verbose_name_plural = verbose_name
+```
+
+第二个表，CourseComments
+
+```python
+"课程评论"
+class CourseComments(models.Model):
+    user = models.ForeignKey(UserProfile, verbose_name='用户')
+    course = models.ForeignKey(Course, verbose_name='课程')
+    comments = models.CharField('评论', max_length=200)
+    add_time = models.DateTimeField('添加时间', default=datetime.now)
+    
+    class Meta:
+        verbose_name = '课程评论'
+        verbose_name_plural = verbose_name
+```
+
+第三个表，UserFavorite, 关键点**，用户收藏有 课程机构，授课教师，公开课，如何设计这种表，在下面有案例**
+
+```python
+"用户收藏"
+class UserFavorite(models.Model):
+    user = models.ForeignKey(UserProfile, verbose_name='用户')
+    fav_id = models.IntegerField('数据id',default=0)
+    fav_type = models.IntegerField('收藏类型', choices=((1,"课程"),(2,"机构"),(3,"讲师"))，default=1)
+    add_time = models.DateTimeField('添加时间', default=datetime.now)
+    
+    class Meta:
+        verbose_name = '用户收藏'
+        verbose_name_plural = verbose_name
+```
+
+第四个表，UserMessage, 消息极可能系统发给单独用户，也可能系统发给全员的信息
+
+```python
+"用户消息"
+class UserMessage(models.Model):
+    user = models.IntegerField('用户',default=0)  # 如果user_id=0,则为全员信息，如果为id，则是单独某个用户的
+    message = models.CharField('消息内容', max_length=500)
+    add_time = models.DateTimeField('添加时间', default=datetime.now)
+    had_read = models.BooleanField('是否已读'，default=False) # 前面加上has或者is，别人很容读清楚， 是否读过， False，未读，True 已读
+    
+    class Meta:
+        verbose_name = '用户消息'
+        verbose_name_plural = verbose_name
+```
+
+
+
+第五个表 UserCourse，用记录用户的学习课程
+
+```python
+"用户课程"
+class CourseComments(models.Model):
+    user = models.ForeignKey(UserProfile, verbose_name='用户')
+    course = models.ForeignKey(Course, verbose_name='课程')
+    add_time = models.DateTimeField('添加时间', default=datetime.now)
+    
+    class Meta:
+        verbose_name = '用户课程'
+        verbose_name_plural = verbose_name
+```
+
+
+
+如何将app添加到settings中
+
+
+
+Django的INSTALLED_APPS中应该写app名还是写AppConfig子类   [官方介绍](https://docs.djangoproject.com/en/3.1/ref/applications/#django.apps.AppConfig)
+
+
+
+原因: 
+
+如果你直接把app名加入到INSTALLED_APPS，Django会默认采用AppConfig基类中的配置信息，而不是你在apps.py中定义的子类如果你希望在不修改INSTALLED_APPS的前提下让自定义的子类生效，，还需要修改app目录下的__init__.py, 新增default_app_config属性, 将自定义子类设为默认
+
+```python
+# account/__init__.py
+default_app_config = 'account.apps.AccountConfig'
+```
+
+如果你直接把自定义的AppConfig子类路径加入到INSTALLED_APPS，那么自定义的子类可以直接生效
+
+```python
+# 直接加入app对应的AppConfig子类路径，可让自定义app配置直接生效
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'app01.apps.App01Config',
+```
+
+每个app也有自己的配置信息，放在apps.py里的。在大多数情况下，把app名直接加入到INSTALLED_APPS就足够了。只有当你需要给app自定义配置信息时，需要把加入app对应的AppConfig子类路径直接加入到INSTALLED_APPS。这个知识点，你get到了吗?
+
+参考资料:
+
+https://blog.csdn.net/weixin_42134789/article/details/108373452
+
+### 4.10 数据表生成及自定义app目录
+
+1. 当写完我们的项目models，我们就可以执行
+
+python manage.py makemigrations
+
+python manage.py migrate
+
+
+
+> 我们执行 python manage.py makemigrations 后，在对应的app目录下的migrations目录下，会生成一个xxxx_initial.py的初始化文件，这个文件很重要，前后是连贯的，不要删除!
+>
+> 我们每次做数据变更，都会生成一个initial.py文件，用于和初始文件进行对比；
+>
+> 
+
+
+
+2. 进入到数据库，我们可以看到我们的数据库 有一个django_migrations表，我们的每次migrate，就会在数据库插入一条数据，记录我们数据库的变更记录；
+
+3. 把4个app都放入一个apps目录，
+
+   1. 现在项目根目录，创建一个apps的文件夹，并讲其他文件放入到apps；
+
+   2. pycharm环境中，在我们新建的apps目录，点击鼠标右键，选择Make Director As-->SourcesRoot，这样我们在项目就可以直接使用
+
+   3. 进入到我们的settings中，还需要配置我们这个环境目录
+
+      ```python
+      import sys
+      sys.path.insert(0, os.path.join(BASE_DIR,'apps'));  # 执行这个操作，我们在命令行就不会出现找不到包的错误信息
+      # python manage.py runserver 0.0.0.0:8000
+      ```
+
+至此，我们就把app的model都做完了
+
+## 第五章 通过xadmin快速搭建后台管理系统
+
+### 5.1 django admin 介绍
+
+后台管理系统的特点
+
+- 权限管理   后台管理系统必不可少一套权限管理系统
+- 前端样式少  ，几乎很少有设计师为后台管理系统设计样式
+- 快速开发 ，后台管理系统能够快速开发，快速交付
+
+
+
+>  一个新项目，后台用户是空，我们需要新建超级用户 `python manage.py createsuperuser;`
+
+> 默认的系统是英文，我们可以在settings.py配置语言环境   LANGUAGE_CODE = 'en-us' 修改为 
+
+```python
+LANGUAGE_CODE = 'en-us'
+
+TIME_ZONE ='Asia/Shanghai'
+
+USE_TZ=False #不使用时区，使用本地时区 ,设置之后重启一下django
+```
+
+> 如何将我们创建的model添加到后台管理系统
+
+1. 首先，我们进入到对应app的admin.py下 如 /users/admin.py
+
+2. 其次，在里面编写添加代码
+
+   ```python
+   from django.contrib import admin
+   from .models import UserProfile
+   
+   class UserProfiledAdmin(admin.ModelAdmin):
+       pass
+   
+   admin.site.register(UserProfile, UserProfileAdmin)
+   ```
+
+3. 进入到我们的后台，这样我们的用户就注册进入到后台管理系统，我们可以直接在后台对数据表进行操作了；
+
+
+
+TIME_ZONE = 'Asia/Shanghai
+
+TIME_ZONE='Asia/Shanghai'
+
+USER_TZ = False  # 我们不用TimeZone,使用本地时间
+
+### 5.2 xadmin的安装
+
+> 安装方式一：
+>
+> 
+>
+> 第三方插件 pip install xadmin -i https://pypi.douban.com/simple
+>
+> 安装之后，执行 pip list， 就能看到xadmin以及对应的依赖包都安装了
+>
+> 接下来进入到settings.py里面配置 INSTALLED_APP=[
+>
+> .......
+>
+> 'xadmin',
+>
+> 'crispy_forms',
+>
+> ]
+>
+> 同步xadmin的表到数据库， python manage.py makemigrations/ python manage.py migrate
+>
+> 
+>
+> 然后，进入到urls.py里面，将admin替换为xadmin
+>
+> ​		import xadmin
+>
+> ​		urlpatterns = [
+>
+> ​			url(r^'xamin/', xadmin.site.urls),
+>
+> ​		]
+>
+> 这样我们的后台就可以重启成功了，xadmin就被安装进来了。
+>
+> xamin官网:  http://sshwsfc.github.io/xadmin/
+
+>安装方式2：通过源码方式集成到我们的项目
+>
+>1. 首先进入到github，搜索xadmin，找到 [sshwsfc/*xadmin*](https://github.com/sshwsfc/xadmin)  源码地址，我们可以下载他的源码
+>
+>2. 解压下载的源码，找到xadmin文件夹并拷贝到我们的项目根目录下，同时执行pip uninstall xadmin， 将xadmin卸载掉；
+>
+>3. 我们新建一个extra_app,存放第三方源码包，在Pycharm里面设置为源码包文件夹，并进入到settings.py 插入一条目录地址
+>
+>   sys.path.insert(1, os.path.join(BASE_DIR, 'extra_app'))
+>
+>   
+>
+>通过源码安装，我们可以用源码方式安装，推荐源码安装
+
+### 5.3user app的model注册
+
+
+
+> 如何注册一个model到xadmin中 EmainVerifyRecord
+
+1. xadmin搜索adminx.py文件，所以我们在app目录下创建一个adminx.py文件
+2. 进入到我们的adminx.py里面 ，添加对应代码
+
+```python
+import xadmin
+from .models import EmainVerifyRecord
+class EmailVerifyRecordAdmin(object):
+    pass
+
+xadmin.site.register(EmailVerifyRecord, EmailVerifyRecordAdmin)
+
+这样我们就把EmainVerifyRecord的注册
+
+
+进入到EmailVerifyRecord中，重写我们的__string__(self)方法
+def __string__(self):
+    return '{0}({1})'.format(self.code, self.email)
+
+```
+
+**adminx.py，list_display展示的对应列表**
+
+```python
+class EmailVerifyRecordAdmin(object):
+    list_display = ['code', 'email','send_type', 'send_time']  # 控制xadmin前面列表显示的字段，顺序和显示顺序一样
+
+xadmin.site.register(EmailVerifyRecord, EmailVerifyRecordAdmin)
+```
+
+**adminx.py， search_fields 提供搜索能力**
+
+```python
+class EmailVerifyRecordAdmin(object):
+    search_fields = ['code', 'email','send_type']  # 支持的搜索方式及搜索关键字
+
+xadmin.site.register(EmailVerifyRecord, EmailVerifyRecordAdmin)
+```
+
+
+
+**adminx.py, list_filter 提供筛选的能力**
+
+```python
+class EmailVerifyRecordAdmin(object):
+    list_filter = ['code', 'email','send_type','send_time']  # 支持的筛选方式及筛选的维度
+
+xadmin.site.register(EmailVerifyRecord, EmailVerifyRecordAdmin)
+```
+
+
+
+下面就可以按照上述方法注册Banner数据表
+
+### 5.4 剩余app model注册
+
+接下里就是按照上述的功能，我们依次注册course的adminx.py， organization的adminx.py   operation的adminx.py
+
+
+
+
+
+### 5.5 xadmin的全局配置
+
+
+
+
+
+
+
+## 第六章 用户注册功能的实现
+
+
+
+
+
+
+
+
+
+## 第七章 课程机构功能实现
+
+
+
+
+
+
+
+
+
+## 第八章 课程功能的实现
+
+
+
+
+
+
+
+## 第九章 课程讲师功能实现
+
+
+
+
+
+
+
+
+
+## 第十章 个人中心和全局搜索功能实现
+
+
+
+
+
+
+
+## 第十一章 首页、全局功能细节和404
+
+
+
+
+
+
+
+## 第十二章 常见web攻击和防范
+
+
+
+
+
+
+
+
+
+## 第十三章  xadmin的进阶开发
+
+
+
+
+
+
+
+## 第十四章 把项目部署上线
+
+
+
+
+
+
+
+
+
+## 第十五章 课程总结
+
+
+
+
+
+
+

@@ -1,0 +1,648 @@
+# JVM初步学习
+
+## 需要掌握的问题
+
+ - 请你谈谈你对JVM的理解？java8的虚拟机和之前的变化更新？
+
+ - 什么是OOM，什么是栈溢出StackOverFlowError?怎么进行分析？
+
+ - JVM的常用钓友参数有哪些？
+
+ - 内存快照如何抓取，怎么分析Dump文件？知道吗？
+
+ - 谈谈JVM中，类加载器你的认识？
+
+   
+
+## 1、JVM位置
+
+
+
+jvm 在操作系统之上，运行在操作系统上! JVM使用C语言编写的。 包含在JRE里面
+
+![image-20201107140206942](F:\MD格式学习笔记库\Untitled.assets\image-20201107140206942.png)
+
+## 2、JVM的体系结构
+
+  如下图
+
+![image-20201107142520583](F:\MD格式学习笔记库\Untitled.assets\image-20201107142520583.png)
+
+方法区：MethodArea
+
+Java栈  Stack  不会有垃圾回收
+
+本地方法栈   Native Method Stack  不会有垃圾回收
+
+堆  Head 会有垃圾回收
+
+程序计数器  不会有垃圾回收
+
+
+
+执行引擎   
+
+本地方法接口
+
+本地方法库
+
+JVM调优99%都是在方法区和堆里面进行调优，都是在调整堆
+
+
+
+JVM 将内存区域划分为 Method Area（Non-Heap）（方法区） ,Heap（堆） , Program Counter Register（程序计数器） , VM Stack（虚拟机栈，也有翻译成JAVA 方法栈的）,Native Method Stack （ 本地方法栈 ），其中Method Area 和 Heap 是**线程共享**的 ，VM Stack，Native Method Stack 和Program Counter Register 是**非线程共享**。为什么分为 线程共享和非线程共享的呢
+
+## 3、类加载器
+
+​	作用：加载class文件~ new Student();
+
+​	 ![image-20201107203720753](F:\MD格式学习笔记库\Untitled.assets\image-20201107203720753.png)
+
+**类加载器的类别：** 1. 虚拟机自带的加载器  2.启动类(根BootstrapClassLoader) 加载器 3.扩展类加载器 ExtensionClassLoader4 应用程序加载器 AppClassLoader或者SystemClassLoader
+
+类加载的时机
+
+	1. 创建类的实例，也就是new一个对象，会加载
+ 	2. 访问某个类或接口的静态变量，或者对该静态变量赋值
+ 	3. 调用类的静态方法
+ 	4. 反射（Class.forName("com.lji.load")）
+ 	5. 初始化一个类的子类(会首先初始化子类的父类)
+ 	6. jvm启动时表明的启动类，既文件名和类名相同的那个类
+
+## 4、双亲委派机制
+
+ 	为了保证安全
+
+​	APP-->EXC--BOOT(最终执行的是这里)
+
+​	加载过程：
+
+ 1. 类加载器收到类加载的请求, Application
+
+ 2. 将这个请求向上委托给父类加载器去完成，一直向上委托，直到启动类加载器 BootStrap
+
+ 3. 启动加载器检查是否能够加载当前这个类，能加载就结束，使用当前的加载器，否则抛出异常，通知子加载器进行加载
+
+ 4. 重复步骤3，
+
+    ClassNotFount~
+
+    Null： java调用不到~C，C++
+
+    java = c++--
+
+​	例如如下代码
+
+```java
+package java.lang;
+
+public class String{
+    
+    //双亲委派机制:安全
+    //1. app -->exec-->boot
+    public String toString(){
+        return "Hello";
+    }
+    public static void main(String [] args){
+        String s = new String();
+        s.toString();
+    }
+    
+}
+//上面代码无法运行
+public class Student{
+    
+    //双亲委派机制:安全
+    //1. app -->exec-->boot
+    public String toString(){
+        return "Hello";
+    }
+    public static void main(String [] args){
+        Student s = new Student();
+        s.toString();
+    }
+    
+}
+//这个代码可以运行
+最终执行的是根的String， rt.jar包中
+ 加载一个类的时候回，总是先去根加载器里面找是否有String类，再去ExT加载器里面找是否有String类，最后去APP加载器里面找是否有String.
+```
+
+
+
+获取加载器的过程
+
+```java
+public class Car {
+    public static void main(String[] args) {
+        Car car1 = new Car();
+        Car car2 = new Car();
+        Car car3 = new Car();
+
+        System.out.println(car1.hashCode());
+        System.out.println(car2.hashCode());
+        System.out.println(car3.hashCode());
+
+        System.out.println(car1.getClass().hashCode());
+        System.out.println(car2.getClass().hashCode());
+        System.out.println(car3.getClass().hashCode());
+
+        System.out.println(car1.getClass().getClassLoader());
+        System.out.println(car1.getClass().getClassLoader().getParent());
+        System.out.println(car1.getClass().getClassLoader().getParent().getParent());
+    }
+    输出:
+    1956725890
+    356573597
+    1735600054
+    1163157884
+    1163157884
+    1163157884
+    sun.misc.Launcher$AppClassLoader@18b4aac2
+    sun.misc.Launcher$ExtClassLoader@14ae5a5
+    null
+```
+
+
+
+**5、沙箱安全机制**
+
+沙箱就是一个限制程序运行的环境，沙箱机制就是将JAVA代码限制在虚拟机特定的运行范围中，并且严格限制代码对本地系统资源访问，通过这样的措施来保证对代码的有效隔离。
+
+百度查询
+
+
+
+**6、Native关键字**
+
+//private native void hello();
+
+Java Native Interface  JNI
+
+凡是带了Native关键字的方法，说明Java的作用范围是达不到的，需要去调用底层C语言的库! 进入到本地方法栈 (Native Method Stack),调用本地方法接口JNI
+
+本地方法接口(JNI)的作用就是调用本地方法库，扩展JAVA的作用，融合不同的编程语言为JAVA所用! 最初想融合进入c、C++等语言
+
+java诞生的时候回，C、C++程序员很多，想要立足，必须要有调用C、C++的程序，于是在内存中专管开辟了一段Native Method Stack, 本地方法栈! 等级Native方法，最终执行的时候。加载本地方法库中的方法通过JNI。比如JAVA程序使用打印机，JAVA程序使用摄像头，JAVA程序使用机器人等，等写JAVA用到大量本地方法，会用到JNI，在企业级应用中较为少见。
+
+现在调用其他接口，现在我们已经开始采用了 Socket, WebService....https等
+
+
+
+**7、PC寄存器**
+
+程序计数器  Program Counter Register
+
+每个线程都有一个程序计数器，是线程私有的，就是一个指针，指向方法区中的方法字节码(用来存储指向每一条指令的地址，也即将要执行的指令代码)。在执行引擎读取下一条指令，是一个非常小的内存空间，几乎可以忽略不计。
+
+## 8、方法区
+
+Method Area方法区
+
+方法区是被所有线程共享，所有的字段和方法字节码，以及一些特殊方法，如构造函数、接口代码也在此定义，简单说，所有定义的方法的信息都保存在该区域，该区域属于共享区间。
+
+​	**static静态变量、final常量、类信息(构造方法、 接口定义)、运行时的常量池存在方法区中，但是实例变量存在堆内存中，和方法区无关**
+
+​	static int demo =10;
+
+​	final int DEMO = 20
+
+​	Class	常量池
+
+
+
+## 9、栈 STACK
+
+
+
+栈 ，是一种数据结构，程序 = 数据结构+算法，持续学习的东西
+
+程序 = 框架+业务逻辑~  吃饭，持续学习!  SprintBoot+Sprint Spring 吃饭用的
+
+
+
+栈的特点： 先进后出，后进先出，桶 
+
+队列： 先进先出(FIFO   First Input First Output) 喝多了吐，就是栈，吃多了拉，就是队列
+
+
+
+为什么main()先执行，却最后结束~
+
+
+
+栈： 栈内存，主管程序的运行，生命周期和线程同步；线程结束，栈内存就会被释放；栈内存结束了，程序也就结束了，**对于栈来说，不存在垃圾回收问题**
+
+栈 ：8大基本类型+对象引用+实例方法，是存放在栈里面的；
+
+栈运行原理：
+
+​	以栈帧的形式存在，程序正在执行的方法，一定在栈的顶部~ StackOverFlowError
+
+![image-20201108192533763](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201108192533763.png)
+
+​	**画出一个对象在内存实例化的过程。**
+
+```java
+public class People {
+    String name; //定义一个成员变量 name
+    int age; //成员变量age
+    Double height; //成员变量
+
+    void sing(){
+        System.out.println("人的姓名" + name);
+        System.out.println("人的年龄" + age);
+        System.out.println("人的身高" + height);
+    }
+
+    public static void main(String[] args) {
+        String name; //定义一个局部变量 name
+        int age; //局部变量age
+        Double height; //局部变量
+
+        People people = new People();//实例化对象people
+        people.name ="张三";//赋值
+        people.age =18;//赋值
+        people.height =180.85; //赋值
+        people.sing();
+    }
+}
+
+```
+
+1. 首先, 在程序的执行过程中，首先类中的成员变量和方法体会进入到方法区，
+
+![image-20201108222235152](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201108222235152.png)
+
+
+
+2. 程序执行到main()方法时，main()函数方法体会进入栈区，这一过程叫做进栈，定义了一个指向Person的实例变量person
+
+![image-20201108222524229](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201108222524229.png)
+
+3. 当程序执行到Person person = new Person()，就会在堆内存开辟一块内存区间，用于存放Person实例对象，然后将成员变量和成员方法放在new实例中，都是取成员变量&成员方法的地址值，
+
+![image-20201108223935501](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201108223935501.png)
+
+4. 接下来对 person 对象进行赋值， person.name = “小二” ; perison.age = 13; person.height= 180.0; 先在栈区找到 person，然后根据地址值找到 new Person() 进行赋值操作
+
+![image-20201108224126912](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201108224126912.png)
+
+5.当程序走到 sing() 方法时，先到栈区找到 person这个引用变量，然后根据该地址值在堆内存中找到 new Person() 进行方法调用。
+
+在方法体void sing()被调用完成后，就会立刻马上从栈内弹出（出站 )
+
+最后，在main()函数完成后，main()函数也会出栈 如图：
+
+![image-20201108224419046](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201108224419046.png)
+
+栈+堆+方法区 交互的一些关系：  
+
+## 10、三种JVM的区别
+
+HotSpot(SUN公司)       JRockit (Oracle BEA)       J9VM(IBM公司)
+
+我们学习的堆都基HotSpot
+
+
+
+堆（Heap） 一个JVM只有一个堆内存，堆内存的大小是可以调节的，类加载器读取了类文件后，会把什么东西放到堆里面呢？ 类具体的实例，类的方法、常量、变量，保存我们所有引用类型的真实对象。
+
+栈中只放一些引用，
+
+堆的内存中还要进行细分为三个区域， 
+
+ - 新生区 (伊甸园区 Eden Space / Young  /New Area)  一般新生区有3个区  [Eden Space 区, Survive 0区, Survive1区   8:1:1] 
+   	- 幸存区 经过垃圾回收还能够生存的对象进入到幸存区，如果对象在幸存区，经过一定数量仍然可以存活，则进入养老区
+	- 养老区(Old Area)
+	- 永久区
+
+垃圾回收分两种
+
+​	轻量级-Miror GC 针对新生区
+
+​	重量级- Full GC 比如养老区也满了，会触发养老区的垃圾回收
+
+GC垃圾回收，主要在Eden Space和 Older Space区。假设内存满了，就会爆出00M(java.lang.OutOfMemoryError:java heap space)，堆内存不够的错误。
+
+在JDK8之前，永久存储区有另外一个名字(元空间); JDK8以后，永久存储区变为了 [元空间]
+
+
+
+
+
+**11、新生区、老年区、永久区**
+
+​	新生区，类诞生和成长的地方，甚至死亡；分为伊甸园区和幸存者区(幸存1区，幸存2区)， 所有的对象都是在伊甸园区new 出来的!
+
+![image-20201109113528123](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201109113528123.png)
+
+真理：经过研究，99%的对象都是临时对象! 
+
+永久区:    这个区域常驻内存，用来存放JDK自身携带的Class对象，包括一些Interface元数据，存放的是我们java运行时的一些环境或者类信息，这个区域不存在垃圾回收! 关闭jvm虚拟机就会释放这个区域的内存~ 出现一些OOM的错误，和JVM也没关系
+
+当一个启动类，加载了大量的第三方jar包。tomcat部署了太多的应用，这样容易导致永久区空间OO,或者大量的动态生成的反射类，如果这些东西不断的被加载，直到内存满，就会出现OOM错误
+
+**逻辑上存在，物理上不存在 --元空间**
+
+
+
+	- jdk 1.6之前  永久代，常量池在方法区中
+	- jdk 1.7       永久代，但是慢慢退化了，提出了去永久代概念，常量池在堆中
+	- jdk 1.8        无永久代，变为元空间，常量池放在了元空间
+
+```java
+public class MaxJVMDemo {
+    public static void main(String[] args) {
+        //返回虚拟机试图使用的最大内存
+        long maxMemory = Runtime.getRuntime().maxMemory();
+        //返回jvm的总内存
+        long totalMemory = Runtime.getRuntime().totalMemory();
+
+        System.out.println("maxMemory=" + maxMemory + "字节\t" + (maxMemory / (double) 1014 / 1014) + "MB");
+        System.out.println("totalMemory=" + totalMemory + "字节\t" + (totalMemory / (double) 1014 / 1014) + "MB");
+        /*
+        系统7.7  max和系统，约等于1/4   totalMemory  约等于1/64  
+        结论: 默认情况下，jvm分配的总内存约是电脑内存的1/4   初始化的total内存，约是电脑的1/64
+         */
+    }
+}
+```
+
+  堆里面抽象逻辑关系
+
+![image-20201109120104618](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201109120104618.png)
+
+
+
+
+
+**结论: 默认情况下，jvm分配的总内存约是电脑内存的1/4   初始化的total内存，约是电脑的1/64**
+
+**堆内存调优**
+
+我们在pycharm里面可以点击项目，---调出来Run/Debug Configurations，在里面配置Vm选项，**-Xms1024m -Xmx1024m -XX:+PrintGCDetails**  如下图
+
+![image-20201109120328550](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201109120328550.png)
+
+
+
+输出结果：
+
+maxMemory=1029177344字节	1000.954432812421MB
+totalMemory=1029177344字节	1000.954432812421MB
+Heap
+ PS**YoungGen**      total 305664K, used 15729K [0x00000000eab00000, 0x0000000100000000, 0x0000000100000000)
+  **eden space** 262144K, 6% used [0x00000000eab00000,0x00000000eba5c420,0x00000000fab00000)
+  **from** space 43520K, 0% used [0x00000000fd580000,0x00000000fd580000,0x0000000100000000)
+  **to**   space 43520K, 0% used [0x00000000fab00000,0x00000000fab00000,0x00000000fd580000)
+ Par**OldGen**       total 699392K, used 0K [0x00000000c0000000, 0x00000000eab00000, 0x00000000eab00000)
+  object space 699392K, 0% used [0x00000000c0000000,0x00000000c0000000,0x00000000eab00000)
+ **Metaspace**       used 3230K, capacity 4496K, committed 4864K, reserved 1056768K
+  class space    used 353K, capacity 388K, committed 512K, reserved 1048576K
+
+示例代码演示OOM错误及垃圾清理过程：
+
+```java
+// -Xms8m -Xmx8m -XX:+PrintGCDetails
+public class TestOutOfMemoryDemo {
+    public static void main(String[] args) {
+        String str = "kuangshensayjava";
+        while (true){
+            str += str + new Random().nextInt(888888888)+new Random().nextInt(99999999);
+        }
+    }
+}
+
+
+输出:
+
+[GC (Allocation Failure) [PSYoungGen: 1536K->504K(2048K)] 1536K->648K(7680K), 0.0007097 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[GC (Allocation Failure) [PSYoungGen: 1828K->499K(2048K)] 1972K->1155K(7680K), 0.0005263 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[GC (Allocation Failure) [PSYoungGen: 1857K->464K(2048K)] 2513K->1910K(7680K), 0.0006237 secs] [Times: user=0.02 sys=0.00, real=0.00 secs] 
+[GC (Allocation Failure) [PSYoungGen: 1600K->496K(2048K)] 4100K->3523K(7680K), 0.0006266 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[GC (Allocation Failure) [PSYoungGen: 1076K->480K(2048K)] 5157K->4577K(7680K), 0.0004294 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[GC (Allocation Failure) [PSYoungGen: 480K->480K(2048K)] 4577K->4585K(7680K), 0.0003617 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[Full GC (Allocation Failure) [PSYoungGen: 480K->0K(2048K)] [ParOldGen: 4105K->2202K(5632K)] 4585K->2202K(7680K), [Metaspace: 3220K->3220K(1056768K)], 0.0036330 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[Full GC (Ergonomics) [PSYoungGen: 1121K->0K(2048K)] [ParOldGen: 5364K->2704K(5632K)] 6486K->2704K(7680K), [Metaspace: 3272K->3272K(1056768K)], 0.0047269 secs] [Times: user=0.00 sys=0.00, real=0.01 secs] 
+[GC (Allocation Failure) [PSYoungGen: 68K->160K(2048K)] 4881K->4973K(7680K), 0.0004437 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[Full GC (Ergonomics) [PSYoungGen: 160K->0K(2048K)] [ParOldGen: 4813K->3760K(5632K)] 4973K->3760K(7680K), [Metaspace: 3280K->3280K(1056768K)], 0.0051718 secs] [Times: user=0.01 sys=0.00, real=0.01 secs] 
+[GC (Allocation Failure) [PSYoungGen: 0K->0K(2048K)] 3760K->3760K(7680K), 0.0002537 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+[Full GC (Allocation Failure) [PSYoungGen: 0K->0K(2048K)] [ParOldGen: 3760K->3740K(5632K)] 3760K->3740K(7680K), [Metaspace: 3280K->3280K(1056768K)], 0.0045350 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+Heap
+ PSYoungGen      total 2048K, used 53K [0x00000000ffd80000, 0x0000000100000000, 0x0000000100000000)
+  eden space 1536K, 3% used [0x00000000ffd80000,0x00000000ffd8d550,0x00000000fff00000)
+  from space 512K, 0% used [0x00000000fff80000,0x00000000fff80000,0x0000000100000000)
+  to   space 512K, 0% used [0x00000000fff00000,0x00000000fff00000,0x00000000fff80000)
+ ParOldGen       total 5632K, used 3740K [0x00000000ff800000, 0x00000000ffd80000, 0x00000000ffd80000)
+  object space 5632K, 66% used [0x00000000ff800000,0x00000000ffba7140,0x00000000ffd80000)
+ Metaspace       used 3324K, capacity 4496K, committed 4864K, reserved 1056768K
+  class space    used 361K, capacity 388K, committed 512K, reserved 1048576K
+Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
+	at java.util.Arrays.copyOf(Arrays.java:3332)
+	at java.lang.AbstractStringBuilder.ensureCapacityInternal(AbstractStringBuilder.java:124)
+	at java.lang.AbstractStringBuilder.append(AbstractStringBuilder.java:674)
+	at java.lang.StringBuilder.append(StringBuilder.java:208)
+	at top.aigoo.jvm.TestOutOfMemoryDemo.main(TestOutOfMemoryDemo.java:10)
+
+Process finished with exit code 1
+
+```
+
+
+
+**使用Jprofiler分析OOM内存溢出原因**
+
+在一个项目中，突然出现了OOM故障，那么该如何排除？  研究为什么出错？ 最快的一种方法，能够看到代码第几行出错。最慢的情况是debug一行行分析代码! 所以我们可以使用一些内存快照分析工具，来进行分析! MAT和JProfiler是一样的，都是做内存分析，内存快照的!
+
+JProfiler的好处
+
+- 分析Dump内存文件，快读定位内存泄漏
+- 获得堆中的数据
+- 获得大的对象~
+- ...
+
+JProfiler_windows_x64_9_2_1.exe 需要安装这个客户端
+
+
+
+Step1.安装步骤
+
+先去官网进行下载这个软件，
+
+注意，安装时候，安装路径不能有空格和中文  如F:\Environment\jprofiler11
+
+
+
+Step2 .在idea配置步骤
+
+安装完成后，我们进入IDEA的SETTING进行配置下(前提是我们之前已经在IDEA里面安装了JProfiler的插件)，如下图
+
+![image-20201109125805041](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201109125805041.png)
+
+step3. 示例代码：
+
+**思路**，每个对象都申请一个1M的字节数组，然后再main函数中，持续生成实例，直至内存爆出，出现OutOfMemoryError，但是try{}catch...使用了Exception无法捕获到。
+
+
+
+```java
+public class TestJProfilerDemo {
+    byte[] array = new byte[1 * 1024 * 1024];//每个数组1M
+
+    public static void main(String[] args) {
+        ArrayList<TestJProfilerDemo> list = new ArrayList<>();
+
+        int count = 0;//计数器，查看第几次出现内存异常
+        try {
+            while (true) {
+                list.add(new TestJProfilerDemo());
+                count += 1;
+            }
+
+        } catch (Exception e) {
+            System.out.println("count-->:" + count);
+            e.printStackTrace();
+        }
+
+    }
+}
+
+```
+
+
+
+step4. dump内存文件：
+
+需要在IDEA配置的vm options： -Xms1m -Xmx8m -XX:+HeapDumpOnOutOfMemoryError
+
+-Xms 设置初始化内存分配大小 1/64 机器内存六十四分之一
+
+-Xmx 设置最大分配内存，默认是1/4
+
+-XX:+ PrintGCDetails  打印内存的垃圾回收信息
+
+-XX:+HeapDumpOnOutOfMemoryError  打印OOM Dump信息
+
+
+
+配置好之后，运行程序，我们就可以找到对应的内存分析文件
+
+![image-20201109130908311](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201109130908311.png)
+
+​	step5. 双击dump内存文件，就可以进入到JProfiler软件
+
+​		一般分析两个，第一个是CurrentObjectSet里面的 BiggestObjects
+
+​		![image-20201109131041638](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201109131041638.png)
+
+​		另一个就是ThreadDump，看具体那个线程哪行代码错误
+
+![image-20201109131049201](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201109131049201.png)
+
+
+
+## 11、GC
+
+JVM在进行GC时，并不是对着三个区域统一回收，大部分时候，回收都在新生代~
+
+ 幸存区(from ,to )
+
+GC分两种：轻GC(普通的GC) ，重GC（全局GC）
+
+题目：
+
+​	JVM的内存模型和分区，每个分区都放得是什么东西
+
+​	堆里面有哪些分区？Eden space Survive from,to, 老年区，说说他们的特点
+
+​	GC的算法有哪些？ 标记清除法，标记整理/压缩法，复制算法，引用计数器，怎么用的？
+
+​	轻GC和重GC分别在什么时候发生？
+
+​	他们的特点和区别。
+
+方法一。引用计数法：
+
+计数器本身也有消耗，如果死循环，就会疯狂引用，这个效率不高!
+
+
+
+方法二、复制算法
+
+记住一句话：幸存区from和幸存区to，谁空谁就是to，
+
+1.每次GC都会将Eden区活的对象移动到幸存区，一旦Eden区被GC后，就会都是空的!
+
+2.从from区的2个复制到to区 ，复制算法是为了保证to区是干净的。
+
+3.当对象经历了15次GC都还么有死，这时候就会进入到养老区，这个15次是可以调整， -XX:MaxTenuringThreshold=5 通过这个参数，可以设定进入老年代的时间，默认是15次
+
+好处：没有内存的碎片，每次都是一整个区移动，从to到from，同时切换了from和to区
+
+![image-20201109150756470](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201109150756470.png)
+
+坏处: 浪费了内存空间~多了一半空间，永远是空，假设对象100%存活，则复制算法的弊端会被放大
+
+复制算法最佳使用场景，对象的存活度较低的时候，复制算法有优势，一半应用在新生区
+
+
+
+方法三、标记清除算法
+
+扫描这些对象，回收时候对对象进行标记
+
+![image-20201109151140629](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201109151140629.png)
+
+清除 ，对没有标记的对象，进行清除
+
+![image-20201109151146863](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201109151146863.png)
+
+​	
+
+好处：不需要额外的空间! 当所有的内存都被标记时候，此时就会内存满了，也会爆出来00M
+
+缺点： 两次扫描，严重浪费时间，会产生内存的碎片
+
+
+
+方法四、标记压缩算法
+
+在标记清除的基础上，再次进行扫描，进行再次优化! 进行压缩，向一端移动存活的对象，防止内存碎片的产生,但是多了一个移动的成本。
+
+![image-20201109151507522](F:\MD格式学习笔记库\狂神JAVA-7-JVM初步学习.assets\image-20201109151507522.png)
+
+
+
+
+
+
+
+## 12、总结
+
+内存效率  赋值算法>标记清除散发>标记压缩算法(时间复杂度)
+
+内存整齐度:  复制算法=标记压缩算法>标记清除算法
+
+内存利用率  标记压缩算法=标记清除算法>复制算法
+
+
+
+没有最好的算法，只有最合适的算法! 所以GC也叫作分代收集算法! 
+
+年轻代，存活率低，一般使用复制算法! 
+
+老年代，存活率高，区域大，一般使用标记清除+标记压缩算法混合实现!
+
+
+
+学习方案：
+
+​	老师提出问题，自己百度
+
+​	思维导图
+
+单点登录~|SSO
+
+
+
